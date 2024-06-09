@@ -48,7 +48,7 @@ const config: HardhatUserConfig = {
             network: 'fraxtal',
             chainId: 252,
             urls: {
-              apiURL: 'https://api-amoy.polygonscan.com/api',
+              apiURL: 'https://api.fraxscan.com/api',
               browserURL: 'https://fraxscan.com',
             },
           },
@@ -56,7 +56,7 @@ const config: HardhatUserConfig = {
             network: 'fraxtalTestnet',
             chainId: 2522,
             urls: {
-              apiURL: 'https://api-amoy.polygonscan.com/api',
+              apiURL: 'https://api-holesky.fraxscan.com/api',
               browserURL: 'https://holesky.fraxscan.com',
             },
           },
