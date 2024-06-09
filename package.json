@@ -1,0 +1,41 @@
+{
+  "name": "pump.fun",
+  "scripts": {
+    "lint:fix": "solhint 'contracts/SubscriptionManager.sol' 'contracts/SubscriptionPlugin.sol' --fix --noPrompt",
+    "coverage": "hardhat coverage --solcoverjs ./.solcover.js --temp artifacts --testfiles \"test/**/*.ts\"",
+    "lint": "solhint 'contracts/SubscriptionManager.sol' 'contracts/SubscriptionPlugin.sol'",
+    "format": "prettier --write --plugin=prettier-plugin-solidity .",
+    "build": "hardhat compile",
+    "test": "hardhat test",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-network-helpers": "^1.0.0",
+    "@nomicfoundation/hardhat-chai-matchers": "^2.0.6",
+    "@nomicfoundation/hardhat-ignition": "^0.15.0",
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@nomicfoundation/hardhat-foundry": "^1.1.2",
+    "@nomicfoundation/hardhat-ethers": "^3.0.5",
+    "@nomicfoundation/hardhat-verify": "^2.0.6",
+    "prettier-plugin-solidity": "^1.3.1",
+    "@types/chai-as-promised": "^7.1.6",
+    "hardhat-abi-exporter": "^2.10.1",
+    "hardhat-gas-reporter": "^1.0.8",
+    "solidity-coverage": "^0.8.12",
+    "@types/mocha": ">=9.1.0",
+    "@types/node": ">=18.0.0",
+    "@types/chai": "^4.2.0",
+    "typescript": "~5.0.4",
+    "prettier": "^3.2.5",
+    "ts-node": "^10.9.2",
+    "hardhat": "^2.22.5",
+    "solhint": "^5.0.1",
+    "dotenv": "^16.4.5",
+    "husky": "^9.0.11",
+    "chai": "^4.2.0"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "4.9.0",
+    "solc": "^0.8.25"
+  }
+}
