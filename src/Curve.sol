@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.25;
 
-import {Token} from "./Token.sol";
-import '@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router01.sol';
+import { Token } from "./Token.sol";
+import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router01.sol";
 
 contract BondingCurveAMM {
-    
     struct TokenLaunchParam {
         string name;
         string symbol;
@@ -24,7 +23,7 @@ contract BondingCurveAMM {
     mapping(address => uint256) public tokenReserve;
     mapping(address => bool) public isLiquidityAdded;
 
-    event TokenLaunch (
+    event TokenLaunch(
         address indexed launcher,
         address token,
         string name,
@@ -37,7 +36,7 @@ contract BondingCurveAMM {
         uint256 timestamp
     );
 
-    event Trade (
+    event Trade(
         address indexed trader,
         address indexed token,
         uint256 amountIn,
@@ -47,19 +46,19 @@ contract BondingCurveAMM {
         bool isBuy
     );
 
-    event MigrateLiquidity (
-        address indexed token,
-        uint256 ethAmount,
-        uint256 tokenAmount,
-        uint256 timestamp
-    );
+    event MigrateLiquidity(address indexed token, uint256 ethAmount, uint256 tokenAmount, uint256 timestamp);
 
     modifier onlyAdmin() {
         require(msg.sender == admin, "Not permitted");
         _;
     }
 
-    constructor(uint256 target, address feeRecipient, uint256 feePercent, address router) {
+    constructor(
+        uint256 target,
+        address feeRecipient,
+        uint256 feePercent,
+        address router
+    ) {
         admin = msg.sender;
         reserveTarget = target;
         protocolFeeRecipient = feeRecipient;
@@ -68,33 +67,26 @@ contract BondingCurveAMM {
     }
 
     function getPrice(uint256 supply, uint256 amount) public pure returns (uint256) {
-        uint256 sum1 = supply == 0 ? 0 : (supply - 1 )* (supply) * (2 * (supply - 1) + 1) / 6;
-        uint256 sum2 = supply == 0 && amount == 1 ? 0 : (supply - 1 + amount) * (supply + amount) * (2 * (supply - 1 + amount) + 1) / 6;
+        uint256 sum1 = supply == 0 ? 0 : ((supply - 1) * (supply) * (2 * (supply - 1) + 1)) / 6;
+        uint256 sum2 = supply == 0 && amount == 1
+            ? 0
+            : ((supply - 1 + amount) * (supply + amount) * (2 * (supply - 1 + amount) + 1)) / 6;
         uint256 summation = sum2 - sum1;
-        return summation * 1 ether / 16000;
+        return (summation * 1 ether) / 16000;
     }
-
 
     function buyToken(address token, uint256 amount) public payable {
         // Todo: reroute the call to the fraxswap pool instead
         require(tokenReserve[token] < reserveTarget, "curve target reached");
         uint256 supply = Token(token).totalSupply();
         uint256 price = getPrice(supply, amount);
-        uint256 protocolFee = price * protocolFeePercent / 100_00;
+        uint256 protocolFee = (price * protocolFeePercent) / 100_00;
         require(msg.value >= price + protocolFee, "Insufficient payment for trade");
         tokenReserve[token] += price;
-        (bool success, ) = protocolFeeRecipient.call{value: protocolFee}("");
+        (bool success, ) = protocolFeeRecipient.call{ value: protocolFee }("");
         Token(token).mintTo(msg.sender, amount);
         require(success, "Unable to send protocol fee");
-        emit Trade(
-            msg.sender,
-            token,
-            msg.value,
-            amount,
-            protocolFee,
-            block.timestamp,
-            true
-        );
+        emit Trade(msg.sender, token, msg.value, amount, protocolFee, block.timestamp, true);
     }
 
     function sellToken(address token, uint256 amount) public {
@@ -102,21 +94,13 @@ contract BondingCurveAMM {
         uint256 supply = Token(token).totalSupply();
         require(Token(token).balanceOf(msg.sender) >= amount, "insufficient balance to cover trade");
         uint256 price = getPrice(supply - amount, amount);
-        uint256 protocolFee = price * protocolFeePercent / 100_00;
+        uint256 protocolFee = (price * protocolFeePercent) / 100_00;
         tokenReserve[token] -= price;
         Token(token).burnFrom(msg.sender, amount);
-        (bool success1, ) = msg.sender.call{value: price - protocolFee}("");
-        (bool success2, ) = protocolFeeRecipient.call{value: protocolFee}("");
+        (bool success1, ) = msg.sender.call{ value: price - protocolFee }("");
+        (bool success2, ) = protocolFeeRecipient.call{ value: protocolFee }("");
         require(success1 && success2, "Unable to send funds");
-        emit Trade(
-            msg.sender,
-            token,
-            amount,
-            price - protocolFee,
-            protocolFee,
-            block.timestamp,
-            false
-        );
+        emit Trade(msg.sender, token, amount, price - protocolFee, protocolFee, block.timestamp, false);
     }
 
     function launchToken(TokenLaunchParam memory param) public {
@@ -142,7 +126,7 @@ contract BondingCurveAMM {
         uint256 supply = token.totalSupply();
         token.mintTo(address(this), supply);
         token.approve(address(swapRouter), supply);
-        swapRouter.addLiquidityETH{value: ethAmount}(
+        swapRouter.addLiquidityETH{ value: ethAmount }(
             _token,
             supply,
             supply,
@@ -151,11 +135,6 @@ contract BondingCurveAMM {
             block.timestamp + 1 minutes
         );
         isLiquidityAdded[_token] = true;
-        emit MigrateLiquidity(
-            _token,
-            ethAmount,
-            supply,
-            block.timestamp
-        );
+        emit MigrateLiquidity(_token, ethAmount, supply, block.timestamp);
     }
 }
