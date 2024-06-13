@@ -2,11 +2,9 @@
 pragma solidity ^0.8.25;
 
 import {Token} from "./Token.sol";
-//import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-//import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import '@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router01.sol';
 
 contract BondingCurveAMM {
-    //using SafeMath for uint256;
     
     struct TokenLaunchParam {
         string name;
@@ -19,10 +17,12 @@ contract BondingCurveAMM {
     }
     address admin;
     address protocolFeeRecipient;
+    IUniswapV2Router01 swapRouter;
     uint256 protocolFeePercent; // decimals is 2 (i.e: 5% is 500)
     uint256 public reserveTarget;
 
     mapping(address => uint256) public tokenReserve;
+    mapping(address => bool) public isLiquidityAdded;
 
     event TokenLaunch (
         address indexed launcher,
@@ -34,7 +34,7 @@ contract BondingCurveAMM {
         string twitterLink,
         string telegramLink,
         string website,
-        uint256 timeStamp
+        uint256 timestamp
     );
 
     event Trade (
@@ -43,12 +43,15 @@ contract BondingCurveAMM {
         uint256 amountIn,
         uint256 amountOut,
         uint256 fee,
-        uint256 timeStamp,
+        uint256 timestamp,
         bool isBuy
     );
 
-    event LiquidityMigrate (
-
+    event MigrateLiquidity (
+        address indexed token,
+        uint256 ethAmount,
+        uint256 tokenAmount,
+        uint256 timestamp
     );
 
     modifier onlyAdmin() {
@@ -56,11 +59,12 @@ contract BondingCurveAMM {
         _;
     }
 
-    constructor(uint256 target, address feeRecipient, uint256 feePercent) {
+    constructor(uint256 target, address feeRecipient, uint256 feePercent, address router) {
         admin = msg.sender;
         reserveTarget = target;
         protocolFeeRecipient = feeRecipient;
         protocolFeePercent = feePercent;
+        swapRouter = IUniswapV2Router01(router);
     }
 
     function getPrice(uint256 supply, uint256 amount) public pure returns (uint256) {
@@ -131,7 +135,27 @@ contract BondingCurveAMM {
         );
     }
 
-    function migrateLiqiudity(address token) public onlyAdmin {
-        require(tokenReserve[token] >= reserveTarget);
+    function migrateLiqiudity(address _token) public onlyAdmin {
+        require(tokenReserve[_token] >= reserveTarget, "reserve target not reached");
+        Token token = Token(_token);
+        uint256 ethAmount = tokenReserve[_token];
+        uint256 supply = token.totalSupply();
+        token.mintTo(address(this), supply);
+        token.approve(address(swapRouter), supply);
+        swapRouter.addLiquidityETH{value: ethAmount}(
+            _token,
+            supply,
+            supply,
+            ethAmount,
+            address(0), // permanently lock the liquidity
+            block.timestamp + 1 minutes
+        );
+        isLiquidityAdded[_token] = true;
+        emit MigrateLiquidity(
+            _token,
+            ethAmount,
+            supply,
+            block.timestamp
+        );
     }
 }
