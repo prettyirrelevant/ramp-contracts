@@ -2,6 +2,7 @@
 pragma solidity ^0.8.25;
 
 import { Token } from "./Token.sol";
+import {console} from "forge-std/Test.sol";
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router01.sol";
 
 contract BondingCurveAMM {
@@ -14,10 +15,10 @@ contract BondingCurveAMM {
         string telegramLink;
         string website;
     }
-    address admin;
-    address protocolFeeRecipient;
-    IUniswapV2Router01 swapRouter;
-    uint256 protocolFeePercent; // decimals is 2 (i.e: 5% is 500)
+    address public admin;
+    address payable public protocolFeeRecipient;
+    IUniswapV2Router01 public swapRouter;
+    uint256 public protocolFeePercent; // decimals is 2 (i.e: 5% is 500)
     uint256 public reserveTarget;
 
     mapping(address => uint256) public tokenReserve;
@@ -61,25 +62,28 @@ contract BondingCurveAMM {
     ) {
         admin = msg.sender;
         reserveTarget = target;
-        protocolFeeRecipient = feeRecipient;
+        protocolFeeRecipient = payable(feeRecipient);
         protocolFeePercent = feePercent;
         swapRouter = IUniswapV2Router01(router);
     }
 
-    function getPrice(uint256 supply, uint256 amount) public pure returns (uint256) {
-        uint256 sum1 = supply == 0 ? 0 : ((supply - 1) * (supply) * (2 * (supply - 1) + 1)) / 6;
-        uint256 sum2 = supply == 0 && amount == 1
-            ? 0
-            : ((supply - 1 + amount) * (supply + amount) * (2 * (supply - 1 + amount) + 1)) / 6;
+    function getPrice(uint256 supply, uint256 amount) public view returns (uint256) {
+        uint256 scaledSupply = supply / 1 ether;
+        uint256 scaledAmount = amount / 1 ether;
+
+        uint256 sum1 = scaledSupply == 0 ? 0 : (scaledSupply - 1) * (scaledSupply) * (2 * (scaledSupply - 1) + 1) / 6;
+        uint256 sum2 = (scaledSupply + scaledAmount - 1) * (scaledSupply + scaledAmount) * (2 * (scaledSupply + scaledAmount - 1) + 1) / 6;
+
         uint256 summation = sum2 - sum1;
-        return (summation * 1 ether) / 16000;
+
+        return summation * 1 ether / 9_600_000_000_000;
     }
 
     function swapETHForToken(address token, uint256 amountIn, uint256 amountOutMin, address to) internal returns (uint256, uint256) {
         require(msg.value >= amountIn, "insufficient eth provided for swap");
         uint256 protocolFee = (amountIn * protocolFeePercent) / 100_00;
         address[] memory path = new address[](2);
-        path[0] = address(0);
+        path[0] = swapRouter.WETH();
         path[1] = token;
         uint[] memory amounts = swapRouter.swapExactETHForTokens{value: amountIn - protocolFee}(
             amountOutMin,
@@ -95,8 +99,8 @@ contract BondingCurveAMM {
 
     function swapTokenForETH(address token, uint256 amountIn, uint256 amountOutMin, address to) internal returns (uint256, uint256) {
         address[] memory path = new address[](2);
-        path[0] = address(0);
-        path[1] = token;
+        path[0] = token;
+        path[1] = swapRouter.WETH();
         uint[] memory amounts = swapRouter.swapExactTokensForETH(
             amountIn, 
             amountOutMin, 
@@ -113,6 +117,7 @@ contract BondingCurveAMM {
     }
 
     function buyToken(address token, uint256 amount) public payable {
+        require(amount != 0, 'invalid amount');
         uint256 fee = 0;
         uint256 amountOut = 0;
         if (isLiquidityAdded[token]) {
@@ -131,6 +136,7 @@ contract BondingCurveAMM {
     }
 
     function sellToken(address _token, uint256 amountIn, uint256 amountOutMin) public {
+        require(amountIn != 0, 'invalid amount');
         uint256 fee = 0;
         uint256 amountOut = 0;
         Token token = Token(_token);
