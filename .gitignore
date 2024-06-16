@@ -22,3 +22,5 @@ ignition/deployments/chain-31337
 out/*
 !out/Curve.sol
 !out/Token.sol
+
+__pycache__/
