@@ -4,8 +4,12 @@ pragma solidity ^0.8.25;
 import { Token } from "./Token.sol";
 import {console} from "forge-std/Test.sol";
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router01.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-contract BondingCurveAMM {
+error NotPermitted();
+error Paused();
+
+contract RampBondingCurveAMM is ReentrancyGuard {
     struct TokenLaunchParam {
         string name;
         string symbol;
@@ -15,17 +19,44 @@ contract BondingCurveAMM {
         string telegramLink;
         string website;
     }
+
+    struct Pool {
+        Token token;
+        uint256 tokenReserve;
+        uint256 virtualTokenReserve;
+        uint256 ethReserve;
+        uint256 virtualEthReserve;
+        uint256 lastPrice;
+        uint256 lastMcapInEth;
+        uint256 lastTimestamp;
+        uint256 lastBlock;
+        address creator;
+        bool migrated;
+    }
+
+    uint256 public constant FEE_DENOMINATOR = 100_00;
+    uint256 public constant MAX_FEE = 10_00; // 10%
+
+    uint256 public constant INIT_VIRTUAL_TOKEN_RESERVE = 1073000000 ether;
+    uint256 public constant INIT_REAL_TOKEN_RESERVE = 793100000 ether;
+    uint256 public constant TOTAL_SUPPLY = 1_000_000_000 ether;
+    uint256 public initVirtualEthReserve;
+    uint256 public migrationThreshold;
+    uint256 public CURVE_CONSTANT;
+
     address public admin;
     address payable public protocolFeeRecipient;
     IUniswapV2Router01 public swapRouter;
-    uint256 public protocolFeePercent; // decimals is 2 (i.e: 5% is 500)
-    uint256 public reserveTarget;
+    uint256 public creationFee;
+    uint256 public tradingFee;
+    uint256 public migrationFee;
+    bool public paused;
 
-    mapping(address => uint256) public tokenReserve;
-    mapping(address => bool) public isLiquidityAdded;
+    //mapping(address => bool) public isLiquidityAdded;
+    mapping(address => Pool) public tokenPool;
 
     event TokenLaunch(
-        address indexed launcher,
+        address indexed creator,
         address token,
         string name,
         string symbol,
@@ -43,6 +74,7 @@ contract BondingCurveAMM {
         uint256 amountIn,
         uint256 amountOut,
         uint256 fee,
+        uint256 currentPrice,
         uint256 timestamp,
         bool isBuy
     );
@@ -50,21 +82,57 @@ contract BondingCurveAMM {
     event MigrateLiquidity(address indexed token, uint256 ethAmount, uint256 tokenAmount, uint256 timestamp);
 
     modifier onlyAdmin() {
-        require(msg.sender == admin, "Not permitted");
+        if (msg.sender != admin) revert NotPermitted();
+        _;
+    }
+
+    modifier onlyUnPaused() {
+        if (paused) revert Paused();
         _;
     }
 
     constructor(
-        uint256 target,
+        uint256 _tradingFee,
+        uint256 _migrationFee,
+        uint256 _creationFee,
+        uint256 _initVirtualEthReserve,
         address feeRecipient,
-        uint256 feePercent,
         address router
     ) {
         admin = msg.sender;
-        reserveTarget = target;
-        protocolFeeRecipient = payable(feeRecipient);
-        protocolFeePercent = feePercent;
+        tradingFee = _tradingFee;
+        migrationFee = _migrationFee;
+        creationFee = _creationFee;
         swapRouter = IUniswapV2Router01(router);
+        paused_ = false;
+        protocolFeeRecipient = feeRecipient;
+        initVirtualEthReserve = _initVirtualEthReserve;
+        CURVE_CONSTANT = initVirtualEthReserve * INIT_VIRTUAL_TOKEN_RESERVE;
+        migrationThreshold = CURVE_CONSTANT / (INIT_VIRTUAL_TOKEN_RESERVE - INIT_REAL_TOKEN_RESERVE) - initVirtualEthReserve;
+    }
+
+    function launchToken(TokenLaunchParam memory param) external {
+        Token token = new Token(param.name, param.symbol, address(this), msg.sender, TOTAL_SUPPLY);
+        Pool storage pool = tokenPool[address(token)];
+        pool.token = token;
+        pool.tokenReserve = INIT_REAL_TOKEN_RESERVE;
+        pool.virtualTokenReserve = INIT_VIRTUAL_TOKEN_RESERVE;
+        pool.ethReserve = 0;
+        pool.virtualEthReserve = initVirtualEthReserve;
+        
+        tokenReserve[address(token)] = 0;
+        emit TokenLaunch(
+            msg.sender,
+            address(token),
+            param.name,
+            param.symbol,
+            param.description,
+            param.image,
+            param.twitterLink,
+            param.telegramLink,
+            param.website,
+            block.timestamp
+        );
     }
 
     function getPrice(uint256 supply, uint256 amount) public view returns (uint256) {
@@ -77,6 +145,26 @@ contract BondingCurveAMM {
         uint256 summation = sum2 - sum1;
 
         return summation * 1 ether / 9_600_000_000_000;
+    }
+
+    function getBuyPrice(address _token, uint256 amount) public view returns (uint256) {
+        return getPrice(Token(_token).totalSupply(), amount);
+    }
+
+    function getSellPrice(address _token, uint256 amount) public view returns (uint256) {
+        return getPrice(Token(_token).totalSupply() - amount, amount);
+    }
+
+    function getBuyPriceAfterFee(address _token, uint256 amount) public view returns (uint256) {
+        uint256 price = getBuyPrice(_token, amount);
+        uint256 fees = price * protocolFeePercent/100_00;
+        return price + fees;
+    }
+
+    function getSellPriceAfterFee(address _token, uint256 amount) public view returns (uint256) {
+        uint256 price = getSellPrice(_token, amount);
+        uint256 fees = price * protocolFeePercent/100_00;
+        return price - fees;
     }
 
     function swapETHForToken(address token, uint256 amountIn, uint256 amountOutMin, address to) internal returns (uint256, uint256) {
@@ -129,6 +217,8 @@ contract BondingCurveAMM {
             fee = (price * protocolFeePercent) / 100_00;
             amountOut = amount;
             require(msg.value >= price + fee, "Insufficient payment for trade");
+            (bool success, ) = protocolFeeRecipient.call{ value: fee }("");
+            require(success, "unable to transfer fee");
             tokenReserve[token] += price;
             Token(token).mintTo(msg.sender, amount);
         }
@@ -159,22 +249,6 @@ contract BondingCurveAMM {
             amountOut = price - fee;
         }
         emit Trade(msg.sender, _token, amountIn, amountOut, fee, block.timestamp, false);
-    }
-
-    function launchToken(TokenLaunchParam memory param) public {
-        Token token = new Token(param.name, param.symbol, address(this));
-        emit TokenLaunch(
-            msg.sender,
-            address(token),
-            param.name,
-            param.symbol,
-            param.description,
-            param.image,
-            param.twitterLink,
-            param.telegramLink,
-            param.website,
-            block.timestamp
-        );
     }
 
     function migrateLiqiudity(address _token) public onlyAdmin {

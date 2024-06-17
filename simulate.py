@@ -12,18 +12,19 @@ def getPrice(supply, amount):
 
 input_lst = [
     (i * 10**21, 1000*10**18)
-    for i in range(1000)
+    for i in range(200)
 ]
 supply = [val[0]/10**18 for val in input_lst]
 price = [getPrice(val[0], 10**18)/10**18 for val in input_lst]
+market_cap = [getPrice(0, val[0])/10**18 for val in input_lst]
 
 fig = go.Figure();
-fig.add_trace(go.Scatter(x=supply, y=price, mode='lines+markers', name='Quadratic Bonding Curve (P(x) = x^2/320000000000)'))
+fig.add_trace(go.Scatter(x=supply, y=market_cap, mode='lines+markers', name='Quadratic Bonding Curve (P(x) = x^2/320000000000)'))
 
 fig.update_layout(
-    title='Supply vs Price Quadratic Bonding Curve (P(x) = x^2/9,600,000,000,000)',
+    title='Supply vs Market cap Quadratic Bonding Curve (P(x) = x^2/9,600,000,000,000)',
     xaxis_title='Supply',
-    yaxis_title='Price (ETH)',
+    yaxis_title='Market Cap (ETH)',
     template='plotly_dark'
 )
 
