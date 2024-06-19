@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.25;
-import { ERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
+import { ERC20Permit, ERC20 } from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
 
 error NotApprovable();
 error NotRampBondingCurve();
@@ -12,28 +12,17 @@ contract RampToken is ERC20Permit {
 
     /// @notice Prevent trading on AMMs until liquidity migration
     bool public isApprovable = false;
-    bool public isLiquidityMigrated = false;
 
     constructor(
         string memory name,
         string memory symbol,
         address _curve,
         address _creator,
-        uint256 _supply,
-    ) ERC20(name, symbol) {
+        uint256 _supply
+    ) ERC20(name, symbol) ERC20Permit(name) {
         curve = _curve;
         creator = _creator;
         _mint(msg.sender, _supply);
-    }
-
-    function mintTo(address recipient, uint256 amount) external {
-        if (msg.sender != curve) revert NotBondingCurve();
-        _mint(recipient, amount);
-    }
-
-    function burnFrom(address from, uint256 amount) external {
-        if (msg.sender != curve) revert NotRampBondingCurve();
-        _burn(from, amount);
     }
 
     function approve(address spender, uint256 amount) public override returns (bool) {
@@ -49,10 +38,5 @@ contract RampToken is ERC20Permit {
     function setIsApprovable(bool _val) public {
         if (msg.sender != curve) revert NotRampBondingCurve();
         isApprovable = _val;
-    }
-
-    function setIsLiquidityMigrated(bool _val) public {
-        if (msg.sender != curve) revert NotRampBondingCurve();
-        isLiquidityMigrated = _val;
     }
 }
