@@ -16,6 +16,7 @@ error InvalidAmountIn();
 error InsufficientOutput();
 error DeadlineExceeded();
 error InvalidToken();
+error FeeTooHigh();
 
 struct TokenLaunchParam {
     string name;
@@ -26,7 +27,6 @@ struct TokenLaunchParam {
     string telegramLink;
     string website;
 }
-
 struct Pool {
     RampToken token;
     uint256 tokenReserve;
@@ -46,22 +46,19 @@ contract RampBondingCurveAMM is ReentrancyGuard {
 
     uint256 public constant FEE_DENOMINATOR = 100_00;
     uint256 public constant MAX_FEE = 10_00; // 10%
-
     uint256 public constant INIT_VIRTUAL_TOKEN_RESERVE = 1073000000 ether;
     uint256 public constant INIT_REAL_TOKEN_RESERVE = 793100000 ether;
     uint256 public constant TOTAL_SUPPLY = 1_000_000_000 ether;
+    IUniswapV2Router01 public immutable swapRouter;
     uint256 public initVirtualEthReserve;
     uint256 public migrationThreshold;
     uint256 public CURVE_CONSTANT;
-
-    address public admin;
-    address payable public protocolFeeRecipient;
-    IUniswapV2Router01 public swapRouter;
     uint256 public creationFee;
     uint256 public tradingFeeRate;
     uint256 public migrationFeeRate;
+    address public admin;
+    address payable public protocolFeeRecipient;
     bool public paused;
-
     mapping(address => Pool) public tokenPool;
 
     event TokenLaunch(
@@ -92,23 +89,22 @@ contract RampBondingCurveAMM is ReentrancyGuard {
         uint256 timestamp,
         bool isBuy
     );
-
     event MigrateLiquidity(address indexed token, uint256 ethAmount, uint256 tokenAmount, uint256 fee, uint256 timestamp);
+
 
     modifier onlyAdmin() {
         if (msg.sender != admin) revert NotPermitted();
         _;
     }
-
     modifier onlyUnPaused() {
         if (paused) revert Paused();
         _;
     }
-
     modifier checkDeadline(uint256 deadline) {
         if (block.timestamp > deadline) revert DeadlineExceeded();
         _;
     }
+
 
     constructor(
         uint256 _tradingFeeRate,
@@ -129,6 +125,7 @@ contract RampBondingCurveAMM is ReentrancyGuard {
         CURVE_CONSTANT = initVirtualEthReserve * INIT_VIRTUAL_TOKEN_RESERVE;
         migrationThreshold = CURVE_CONSTANT / (INIT_VIRTUAL_TOKEN_RESERVE - INIT_REAL_TOKEN_RESERVE) - initVirtualEthReserve;
     }
+
 
     function launchToken(TokenLaunchParam memory param) external payable onlyUnPaused returns (address) {
         if (msg.value < creationFee) revert InsufficientPayment();
@@ -177,9 +174,10 @@ contract RampBondingCurveAMM is ReentrancyGuard {
         checkDeadline(deadline) 
         returns (uint256 amountOut) 
     {
+        if (msg.value < amountIn) revert InsufficientPayment();
+        if (amountIn == 0) revert InvalidAmountIn();
         uint256 fee = amountIn * tradingFeeRate / FEE_DENOMINATOR;
         amountIn -= fee;
-        if (msg.value >= amountIn) revert InsufficientPayment();
         SafeTransferLib.safeTransferETH(protocolFeeRecipient, fee);
         if (tokenPool[token].migrated) {
             // route call to swapRouter
@@ -304,8 +302,6 @@ contract RampBondingCurveAMM is ReentrancyGuard {
         }
     }
 
-
-
     function _swapETHForTokenOnRouter(address token, uint256 amountIn, uint256 amountOutMin, address to) private returns (uint256, uint256) {
         if (msg.value < amountIn) revert InsufficientPayment();
         uint256 fee = (amountIn * tradingFeeRate) / FEE_DENOMINATOR;
@@ -341,70 +337,35 @@ contract RampBondingCurveAMM is ReentrancyGuard {
         return (amountOut - fee, fee);
     }
 
-    // function buyToken(address token, uint256 amount) public payable {
-    //     require(amount != 0, 'invalid amount');
-    //     uint256 fee = 0;
-    //     uint256 amountOut = 0;
-    //     if (isLiquidityAdded[token]) {
-    //         (fee, amountOut) = swapETHForToken(token, msg.value, amount, msg.sender);
-    //     } else {
-    //         require(tokenReserve[token] < reserveTarget, "curve target reached");
-    //         uint256 supply = Token(token).totalSupply();
-    //         uint256 price = getPrice(supply, amount);
-    //         fee = (price * protocolFeePercent) / 100_00;
-    //         amountOut = amount;
-    //         require(msg.value >= price + fee, "Insufficient payment for trade");
-    //         (bool success, ) = protocolFeeRecipient.call{ value: fee }("");
-    //         require(success, "unable to transfer fee");
-    //         tokenReserve[token] += price;
-    //         Token(token).mintTo(msg.sender, amount);
-    //     }
-    //     emit Trade(msg.sender, token, msg.value, amount, fee, block.timestamp, true);
-    // }
+    function setInitVirtualEthReserve(uint256 value) external onlyAdmin {
+        initVirtualEthReserve = value;
+        CURVE_CONSTANT = initVirtualEthReserve * INIT_VIRTUAL_TOKEN_RESERVE;
+        migrationThreshold = CURVE_CONSTANT / (INIT_VIRTUAL_TOKEN_RESERVE - INIT_REAL_TOKEN_RESERVE) - initVirtualEthReserve;
+    }
 
-    // function sellToken(address _token, uint256 amountIn, uint256 amountOutMin) public {
-    //     require(amountIn != 0, 'invalid amount');
-    //     uint256 fee = 0;
-    //     uint256 amountOut = 0;
-    //     Token token = Token(_token);
-    //     if (isLiquidityAdded[_token]) {
-    //         bool success1 = token.transferFrom(msg.sender, address(this), amountIn);
-    //         bool success2 = token.approve(address(swapRouter), amountIn);
-    //         require(success1 && success2, "failed to move tokens");
-    //         (fee, amountOut) = swapTokenForETH(_token, amountIn, amountOutMin, msg.sender);
-    //     } else {
-    //         uint256 supply = token.totalSupply();
-    //         require(token.balanceOf(msg.sender) >= amountIn, "insufficient balance to cover trade");
-    //         uint256 price = getPrice(supply - amountIn, amountIn);
-    //         uint256 protocolFee = (price * protocolFeePercent) / 100_00;
-    //         tokenReserve[_token] -= price;
-    //         Token(token).burnFrom(msg.sender, amountIn);
-    //         (bool success1, ) = msg.sender.call{ value: price - protocolFee }("");
-    //         (bool success2, ) = protocolFeeRecipient.call{ value: protocolFee }("");
-    //         require(success1 && success2, "Unable to send funds");
-    //         fee = protocolFee;
-    //         amountOut = price - fee;
-    //     }
-    //     emit Trade(msg.sender, _token, amountIn, amountOut, fee, block.timestamp, false);
-    // }
+    function setProtocolFeeRecipient(address recpt) external onlyAdmin {
+        protocolFeeRecipient = payable(recpt);
+    }
 
-    // function migrateLiqiudity(address _token) public onlyAdmin {
-    //     require(tokenReserve[_token] >= reserveTarget, "reserve target not reached");
-    //     Token token = Token(_token);
-    //     uint256 ethAmount = tokenReserve[_token];
-    //     uint256 supply = token.totalSupply();
-    //     token.mintTo(address(this), supply);
-    //     bool success = token.approve(address(swapRouter), supply);
-    //     require(success, "token approval failed");
-    //     swapRouter.addLiquidityETH{ value: ethAmount }(
-    //         _token,
-    //         supply,
-    //         supply,
-    //         ethAmount,
-    //         address(0), // permanently lock the liquidity
-    //         block.timestamp + 1 minutes
-    //     );
-    //     isLiquidityAdded[_token] = true;
-    //     emit MigrateLiquidity(_token, ethAmount, supply, block.timestamp);
-    // }
+    function setCreationFee(uint256 value) external onlyAdmin {
+        creationFee = value;
+    }
+
+    function setMigrationFeeRate(uint256 value) external onlyAdmin {
+        if (value > MAX_FEE) revert FeeTooHigh();
+        migrationFeeRate = value;
+    }
+
+    function setTradingFeeRate(uint256 value) external onlyAdmin {
+        if (value > MAX_FEE) revert FeeTooHigh();
+        tradingFeeRate = value;
+    }
+
+    function setAdmin(address newAdmin) external onlyAdmin {
+        admin = newAdmin;
+    }
+
+    function setPaused(bool _val) external onlyAdmin {
+        paused = _val;
+    }
 }
