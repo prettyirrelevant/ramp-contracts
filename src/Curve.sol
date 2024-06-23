@@ -187,12 +187,13 @@ contract RampBondingCurveAMM is ReentrancyGuard {
     {
         if (msg.value < amountIn) revert InsufficientPayment();
         if (amountIn == 0) revert InvalidAmountIn();
-        uint256 fee = amountIn * tradingFeeRate / FEE_DENOMINATOR;
-        amountIn -= fee;
-        SafeTransferLib.safeTransferETH(protocolFeeRecipient, fee);
+        uint256 fee = 0;
         if (tokenPool[token].migrated) {
-            // route call to swapRouter
+            ( amountOut, fee ) = _swapETHForTokenOnRouter(token, amountIn, amountOutMin, msg.sender);
         } else {
+            fee = amountIn * tradingFeeRate / FEE_DENOMINATOR;
+            amountIn -= fee;
+            SafeTransferLib.safeTransferETH(protocolFeeRecipient, fee);
             if (tokenPool[token].creator == address(0)) revert InvalidToken();
             uint256 newVirtualEthReserve = tokenPool[token].virtualEthReserve + amountIn;
             uint256 newVirtualTokenReserve = CURVE_CONSTANT / newVirtualEthReserve;
@@ -229,12 +230,13 @@ contract RampBondingCurveAMM is ReentrancyGuard {
         checkDeadline(deadline)
         returns (uint256 amountOut)
     {
+        uint256 fee = 0;
         if (amountIn == 0) revert InvalidAmountIn();
+        SafeTransferLib.safeTransferFrom(ERC20(token), msg.sender, address(this), amountIn);
         if (tokenPool[token].migrated) {
-            // route call to swapRouter
+            ( amountOut, fee ) = _swapTokenForETHOnRouter(token, amountIn, amountOutMin, msg.sender);
         } else {
             if (tokenPool[token].creator == address(0)) revert InvalidToken();
-            SafeTransferLib.safeTransferFrom(ERC20(token), msg.sender, address(this), amountIn);
         
             uint256 newVirtualTokenReserve = tokenPool[token].virtualTokenReserve + amountIn;
             uint256 newVirtualEthReserve = CURVE_CONSTANT / newVirtualTokenReserve;
@@ -249,14 +251,14 @@ contract RampBondingCurveAMM is ReentrancyGuard {
             tokenPool[token].tokenReserve += amountIn;
             tokenPool[token].ethReserve -= amountOut;
 
-            uint256 fee = amountOut * tradingFeeRate / FEE_DENOMINATOR;
+            fee = amountOut * tradingFeeRate / FEE_DENOMINATOR;
             amountOut -= fee;
 
             if (amountOut < amountOutMin) revert InsufficientOutput();
             SafeTransferLib.safeTransferETH(protocolFeeRecipient, fee);
             SafeTransferLib.safeTransferETH(msg.sender, amountOut);
-            emit Trade(msg.sender, token, amountIn, amountOut, fee, block.timestamp, false);
         }
+        emit Trade(msg.sender, token, amountIn, amountOut, fee, block.timestamp, false);
     }
 
     function _migrateLiquidity(address token) private {
@@ -336,6 +338,7 @@ contract RampBondingCurveAMM is ReentrancyGuard {
         address[] memory path = new address[](2);
         path[0] = token;
         path[1] = swapRouter.WETH();
+        RampToken(token).approve(address(swapRouter), amountIn);
         uint[] memory amounts = swapRouter.swapExactTokensForETH(
             amountIn, 
             amountOutMin, 
@@ -381,4 +384,6 @@ contract RampBondingCurveAMM is ReentrancyGuard {
     function setPaused(bool _val) external onlyAdmin {
         paused = _val;
     }
+
+    receive() external payable {}
 }
