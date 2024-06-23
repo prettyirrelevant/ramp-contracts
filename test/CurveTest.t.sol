@@ -303,6 +303,61 @@ contract CurveTest is Test {
         assertEq(migFee, expectedMigrationFee);
     }
 
+    function test_swap_eth_for_tokens_on_router() public {
+        vm.recordLogs();
+        vm.startPrank(trader);
+        vm.deal(trader, 10 ether);
+        uint256 amountIn = 4 ether;
+        //uint256 fee = amountIn * tradingFeeRate / curve.FEE_DENOMINATOR();
+
+        // Buy tokens enough to exceed threshold and migrate liquidity to fraxswap
+        curve.swapEthForTokens{value: amountIn}(address(testToken), amountIn, 0, block.timestamp + 1 minutes);
+
+        IUniswapV2Router02 router = IUniswapV2Router02(swapRouter);
+        IUniswapV2Factory uniswapFactory = IUniswapV2Factory(uniswapV2Factory);
+        address pairAddr = uniswapFactory.getPair(address(testToken), router.WETH());
+        IUniswapV2Pair pair = IUniswapV2Pair(pairAddr);
+        uint256 beforeTokenBal = testToken.balanceOf(trader);
+        ( uint112 beforeTokenReserve, uint112 beforeEthReserve, ) = pair.getReserves();
+        // Buy Tokens on FraxSwap router
+        uint256 amountOut = curve.swapEthForTokens{value: 1 ether}(address(testToken), 1 ether, 0, block.timestamp + 1 minutes);
+        uint256 afterTokenBal = testToken.balanceOf(trader);
+        ( uint112 afterTokenReserve, uint112 afterEthReserve, ) = pair.getReserves();
+        vm.stopPrank();
+
+        assertEq(beforeTokenReserve - afterTokenReserve, amountOut);
+        assertEq(afterEthReserve > beforeEthReserve, true);
+        assertEq(afterTokenBal - beforeTokenBal, amountOut);
+    }
+
+    function test_swap_tokens_for_eth_on_router() public {
+        vm.recordLogs();
+        vm.startPrank(trader);
+        vm.deal(trader, 10 ether);
+        uint256 amountIn = 4 ether;
+        //uint256 fee = amountIn * tradingFeeRate / curve.FEE_DENOMINATOR();
+
+        // Buy tokens enough to exceed threshold and migrate liquidity to fraxswap
+        uint256 tokenAmount = curve.swapEthForTokens{value: amountIn}(address(testToken), amountIn, 0, block.timestamp + 1 minutes);
+
+        IUniswapV2Router02 router = IUniswapV2Router02(swapRouter);
+        IUniswapV2Factory uniswapFactory = IUniswapV2Factory(uniswapV2Factory);
+        address pairAddr = uniswapFactory.getPair(address(testToken), router.WETH());
+        IUniswapV2Pair pair = IUniswapV2Pair(pairAddr);
+        uint256 beforeTokenBal = testToken.balanceOf(trader);
+        ( uint112 beforeTokenReserve, uint112 beforeEthReserve, ) = pair.getReserves();
+        // Sell Tokens on FraxSwap router
+        testToken.approve(address(curve), tokenAmount/2);
+        curve.swapTokensForEth(address(testToken), tokenAmount/2, 0, block.timestamp + 1 minutes);
+        uint256 afterTokenBal = testToken.balanceOf(trader);
+        ( uint112 afterTokenReserve, uint112 afterEthReserve, ) = pair.getReserves();
+        vm.stopPrank();
+
+        assertEq(afterTokenReserve - beforeTokenReserve, tokenAmount/2);
+        assertEq(beforeEthReserve > afterEthReserve, true);
+        assertEq(beforeTokenBal - afterTokenBal, tokenAmount/2);
+    }
+
     function test_launch_token_with_zero_creation_fee() public {
         vm.prank(admin);
         curve.setCreationFee(0);
