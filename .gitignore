@@ -18,3 +18,9 @@ ignition/deployments/chain-31337
 
 # Apple
 .DS_Store
+
+out/*
+!out/Curve.sol
+!out/Token.sol
+
+__pycache__/
