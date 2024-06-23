@@ -3,7 +3,8 @@ pragma solidity ^0.8.25;
 
 import { RampToken } from "./Token.sol";
 import { console } from "forge-std/Test.sol";
-import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router01.sol";
+import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
+import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import { FixedPointMathLib } from "@solmate/utils/FixedPointMathLib.sol";
 import { SafeTransferLib } from "@solmate/utils/SafeTransferLib.sol";
@@ -49,7 +50,8 @@ contract RampBondingCurveAMM is ReentrancyGuard {
     uint256 public constant INIT_VIRTUAL_TOKEN_RESERVE = 1073000000 ether;
     uint256 public constant INIT_REAL_TOKEN_RESERVE = 793100000 ether;
     uint256 public constant TOTAL_SUPPLY = 1_000_000_000 ether;
-    IUniswapV2Router01 public immutable swapRouter;
+    IUniswapV2Router02 public immutable swapRouter;
+    IUniswapV2Factory public immutable uniswapV2Factory;
     uint256 public initVirtualEthReserve;
     uint256 public migrationThreshold;
     uint256 public CURVE_CONSTANT;
@@ -89,7 +91,14 @@ contract RampBondingCurveAMM is ReentrancyGuard {
         uint256 timestamp,
         bool isBuy
     );
-    event MigrateLiquidity(address indexed token, uint256 ethAmount, uint256 tokenAmount, uint256 fee, uint256 timestamp);
+    event MigrateLiquidity(
+        address indexed token,
+        address indexed pair, 
+        uint256 ethAmount, 
+        uint256 tokenAmount, 
+        uint256 fee, 
+        uint256 timestamp
+    );
 
 
     modifier onlyAdmin() {
@@ -112,13 +121,15 @@ contract RampBondingCurveAMM is ReentrancyGuard {
         uint256 _creationFee,
         uint256 _initVirtualEthReserve,
         address feeRecipient,
-        address router
+        address router,
+        address factory
     ) {
         admin = msg.sender;
         tradingFeeRate = _tradingFeeRate;
         migrationFeeRate = _migrationFeeRate;
         creationFee = _creationFee;
-        swapRouter = IUniswapV2Router01(router);
+        swapRouter = IUniswapV2Router02(router);
+        uniswapV2Factory = IUniswapV2Factory(factory);
         paused = false;
         protocolFeeRecipient = payable(feeRecipient);
         initVirtualEthReserve = _initVirtualEthReserve;
@@ -258,8 +269,10 @@ contract RampBondingCurveAMM is ReentrancyGuard {
         uint256 ethAmount = tokenPool[token].ethReserve - fee;
         uint256 tokenAmount = TOTAL_SUPPLY - INIT_REAL_TOKEN_RESERVE;
 
+        RampToken(token).setIsApprovable(true);
         bool success = RampToken(token).approve(address(swapRouter), tokenAmount);
         require(success, "token approval failed");
+        address pair = uniswapV2Factory.createPair(token, swapRouter.WETH());
         swapRouter.addLiquidityETH{ value: ethAmount }(
             token,
             tokenAmount,
@@ -273,7 +286,7 @@ contract RampBondingCurveAMM is ReentrancyGuard {
         tokenPool[token].virtualTokenReserve = 0;
         tokenPool[token].ethReserve = 0;
         tokenPool[token].tokenReserve = 0;
-        emit MigrateLiquidity(token, ethAmount, tokenAmount, fee, block.timestamp);
+        emit MigrateLiquidity(token, pair, ethAmount, tokenAmount, fee, block.timestamp);
     }
 
     function calcAmountOutFromToken(address token, uint256 amountIn) external view returns (uint256 amountOut) {

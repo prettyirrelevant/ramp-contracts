@@ -26,8 +26,8 @@ contract RampToken is ERC20Permit {
     }
 
     function approve(address spender, uint256 amount) public override returns (bool) {
-        if (!isApprovable) revert NotApprovable();
-        return super.approve(spender, amount);
+        if (spender == curve || isApprovable) return super.approve(spender, amount);
+        revert NotApprovable();
     }
 
     function permit(address owner, address spender, uint256 value, uint256 deadline, uint8 v, bytes32 r, bytes32 s) public override {
