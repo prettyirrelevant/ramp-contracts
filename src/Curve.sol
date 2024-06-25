@@ -220,7 +220,7 @@ contract RampBondingCurveAMM is ReentrancyGuard {
                 _migrateLiquidity(token);
             }
         }
-        emit Trade(msg.sender, token, amountIn, amountOut, fee, block.timestamp, true);
+        emit Trade(msg.sender, token, amountIn + fee, amountOut, fee, block.timestamp, true);
     }
 
     function swapTokensForEth(address token, uint256 amountIn, uint256 amountOutMin, uint256 deadline)

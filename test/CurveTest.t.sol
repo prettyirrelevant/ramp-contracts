@@ -211,13 +211,25 @@ contract CurveTest is Test {
         ( uint256 price, uint256 mcapEth, ) = abi.decode(priceUpdateLog.data, (uint256, uint256, uint256));
         assertEq(priceUpdateLog.topics.length, 3);
         assertEq(priceUpdateLog.topics[0], keccak256("PriceUpdate(address,address,uint256,uint256,uint256)"));
-        assertEq(abi.decode(abi.encodePacked(transferLog.topics[1]), (address)), address(testToken));
-        assertEq(abi.decode(abi.encodePacked(transferLog.topics[2]), (address)), trader);
+        assertEq(abi.decode(abi.encodePacked(priceUpdateLog.topics[1]), (address)), address(testToken));
+        assertEq(abi.decode(abi.encodePacked(priceUpdateLog.topics[2]), (address)), trader);
         assertEq(price, lastPrice);
         assertEq(mcapEth, lastMcapInEth);
 
         // --- TRADE EVENT ---
         Vm.Log memory tradeLog = logs[2];
+        ( 
+            uint256 tradeAmountIn, uint256 tradeAmountOut, 
+            uint256 tradeFee,,bool isBuy 
+        ) = abi.decode(tradeLog.data, (uint256, uint256, uint256, uint256, bool));
+        assertEq(tradeLog.topics.length, 3);
+        assertEq(tradeLog.topics[0], keccak256("Trade(address,address,uint256,uint256,uint256,uint256,bool)"));
+        assertEq(abi.decode(abi.encodePacked(tradeLog.topics[1]), (address)), trader);
+        assertEq(abi.decode(abi.encodePacked(tradeLog.topics[2]), (address)), address(testToken));
+        assertEq(tradeAmountIn, amountIn);
+        assertEq(tradeAmountOut, amountOut);
+        assertEq(tradeFee, fee);
+        assertEq(isBuy, true);
     }
 
     function test_swap_tokens_for_eth() public {
