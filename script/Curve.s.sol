@@ -33,3 +33,10 @@ contract TestnetDeploymentScript is Script {
         vm.stopBroadcast();
     }
 }
+
+contract MainnetDeploymentScript is TestnetDeploymentScript {
+    function setRouterAndFactory() public override {
+        swapRouter = 0x39cd4db6460d8B5961F73E997E86DdbB7Ca4D5F6;
+        fraxswapFactory = 0xE30521fe7f3bEB6Ad556887b50739d6C7CA667E6;
+    }
+}
