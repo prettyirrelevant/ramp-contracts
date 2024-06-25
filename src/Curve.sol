@@ -257,6 +257,8 @@ contract RampBondingCurveAMM is ReentrancyGuard {
             if (amountOut < amountOutMin) revert InsufficientOutput();
             SafeTransferLib.safeTransferETH(protocolFeeRecipient, fee);
             SafeTransferLib.safeTransferETH(msg.sender, amountOut);
+
+            emit PriceUpdate(token, msg.sender, tokenPool[token].lastPrice, tokenPool[token].lastMcapInEth, block.timestamp);
         }
         emit Trade(msg.sender, token, amountIn, amountOut, fee, block.timestamp, false);
     }

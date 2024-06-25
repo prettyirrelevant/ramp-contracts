@@ -249,6 +249,8 @@ contract CurveTest is Test {
         uint256 amountOut = curve.swapTokensForEth(address(testToken), amountIn, amountOutMin, block.timestamp + 1 minutes);
         vm.stopPrank();
 
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+
         // // ---- POOL VERIFICATION ----
         (
             , uint256 afterTokenReserve, uint256 afterVirtualTokenReserve, uint256 afterEthReserve,
@@ -273,6 +275,40 @@ contract CurveTest is Test {
         assertEq(afterFeeCollectorBal - beforeFeeCollectorBal, fee);
         assertEq(beforeCurveBal - afterCurveBal, amountOut + fee);
         assertEq(afterCurveTokenBal - beforeCurveTokenBal, amountIn);
+
+        // ----- TRANSFER EVENT CHECKS -----
+        Vm.Log memory transferLog = logs[0];
+        ( uint256 transferAmount ) = abi.decode(transferLog.data, (uint256));
+        assertEq(transferLog.topics.length, 3);
+        assertEq(transferLog.topics[0], keccak256("Transfer(address,address,uint256)"));
+        assertEq(abi.decode(abi.encodePacked(transferLog.topics[1]), (address)), trader);
+        assertEq(abi.decode(abi.encodePacked(transferLog.topics[2]), (address)), address(curve));
+        assertEq(transferAmount, amountIn);
+
+        // ----- PRICE UPDATE EVENT CHECKS ----
+        Vm.Log memory priceUpdateLog = logs[1];
+        ( uint256 price, uint256 mcapEth, ) = abi.decode(priceUpdateLog.data, (uint256, uint256, uint256));
+        assertEq(priceUpdateLog.topics.length, 3);
+        assertEq(priceUpdateLog.topics[0], keccak256("PriceUpdate(address,address,uint256,uint256,uint256)"));
+        assertEq(abi.decode(abi.encodePacked(priceUpdateLog.topics[1]), (address)), address(testToken));
+        assertEq(abi.decode(abi.encodePacked(priceUpdateLog.topics[2]), (address)), trader);
+        assertEq(price, lastPrice);
+        assertEq(mcapEth, lastMcapInEth);
+
+        // ----- TRADE EVENT CHECKS -----
+        Vm.Log memory tradeLog = logs[2];
+        ( 
+            uint256 tradeAmountIn, uint256 tradeAmountOut, 
+            uint256 tradeFee,,bool isBuy 
+        ) = abi.decode(tradeLog.data, (uint256, uint256, uint256, uint256, bool));
+        assertEq(tradeLog.topics.length, 3);
+        assertEq(tradeLog.topics[0], keccak256("Trade(address,address,uint256,uint256,uint256,uint256,bool)"));
+        assertEq(abi.decode(abi.encodePacked(tradeLog.topics[1]), (address)), trader);
+        assertEq(abi.decode(abi.encodePacked(tradeLog.topics[2]), (address)), address(testToken));
+        assertEq(tradeAmountIn, amountIn);
+        assertEq(tradeAmountOut, amountOutMin);
+        assertEq(tradeFee, fee);
+        assertEq(isBuy, false);
     }
 
     function test_migrate_liquidity() public {
