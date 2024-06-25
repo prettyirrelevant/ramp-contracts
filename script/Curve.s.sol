@@ -40,3 +40,53 @@ contract MainnetDeploymentScript is TestnetDeploymentScript {
         fraxswapFactory = 0xE30521fe7f3bEB6Ad556887b50739d6C7CA667E6;
     }
 }
+
+contract TestnetTransactionScript is Script {
+    RampBondingCurveAMM curve;
+    uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
+
+    function setCurve() public virtual {
+        curve = RampBondingCurveAMM(payable(0xD62BfbF2050e8fEAD90e32558329D43A6efce4C8));
+    }
+
+    function runTokenLaunch() public returns (RampToken) {
+        TokenLaunchParam memory param = TokenLaunchParam({
+            name: "Ramp Token",
+            symbol: "RTK",
+            description: "Community token for ramp.fun",
+            image: "ramp.jpg",
+            twitterLink: "x.com/ramp.fun",
+            telegramLink: "t.me/ramp.fun",
+            website: "test2.com"
+        });
+        address token = curve.launchToken(param);
+        return RampToken(token);
+    }
+
+    function runSwapEthForTokens(RampToken token, uint256 amountIn) public returns (uint256 amountOut) {
+        uint256 amountOutMin = curve.calcAmountOutFromEth(address(token), amountIn);
+        amountOut = curve.swapEthForTokens{ value: amountIn }(address(token), amountIn, amountOutMin, block.timestamp + 2 minutes);
+    }
+
+    function runSwapTokensForEth(RampToken token, uint256 amountIn) public returns (uint256 amountOut) {
+        uint256 amountOutMin = curve.calcAmountOutFromToken(address(token), amountIn);
+        token.approve(address(curve), amountIn);
+        amountOut = curve.swapTokensForEth(address(token), amountIn, amountOutMin, block.timestamp + 2 minutes);
+    }
+
+    function runMigrateLiquidity(RampToken token, uint256 threshold) public {
+        uint256 amountOutMin = curve.calcAmountOutFromEth(address(token), threshold);
+        curve.swapEthForTokens{ value: threshold }(address(token), threshold, amountOutMin, block.timestamp + 2 minutes);
+    }
+
+    function run() public {
+        setCurve();
+        vm.startBroadcast(deployerPrivateKey);
+        curve.setCreationFee(0);
+        RampToken token = runTokenLaunch();
+        uint256 tokenAmountOut = runSwapEthForTokens(token, 0.001 ether);
+        runSwapTokensForEth(token, tokenAmountOut/2);
+        // runMigrateLiquidity(token, 0.1 ether);
+        vm.stopBroadcast();
+    }
+}
