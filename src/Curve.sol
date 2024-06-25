@@ -2,7 +2,6 @@
 pragma solidity ^0.8.25;
 
 import { RampToken } from "./Token.sol";
-import { console } from "forge-std/Test.sol";
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
