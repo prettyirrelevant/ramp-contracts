@@ -9,23 +9,26 @@ import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
 import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 
-contract CurveTest is Test {
-    using FixedPointMathLib for uint256;
+contract BaseForkTest is Test {
 
     RampBondingCurveAMM public curve;
     RampToken public testToken;
     address public feeCollector;
     address public trader;
     address public admin;
-    address swapRouter = 0x39cd4db6460d8B5961F73E997E86DdbB7Ca4D5F6;
-    address uniswapV2Factory = 0xE30521fe7f3bEB6Ad556887b50739d6C7CA667E6;
+    address public swapRouter;
+    address public uniswapV2Factory;
     uint256 tradingFeeRate = 100; // 1%
     uint256 migrationFeeRate = 700; // 1.5%
     uint256 creationFee = 10**15; // 0.001 ether
     uint256 initVirtualEthReserve = 0.03 ether;
-    
 
-    function setUp() public {
+    function setRouterAndFactory() public virtual {
+        swapRouter = 0x39cd4db6460d8B5961F73E997E86DdbB7Ca4D5F6;
+        uniswapV2Factory = 0xE30521fe7f3bEB6Ad556887b50739d6C7CA667E6;
+    }
+
+    function runSetUp() internal {
         (feeCollector, ) = makeAddrAndKey("feeCollector");
         (trader, ) = makeAddrAndKey("trader");
         (admin, ) = makeAddrAndKey("admin");
@@ -51,7 +54,15 @@ contract CurveTest is Test {
         address token = curve.launchToken{value: creationFee}(param);
         testToken = RampToken(token);
     }
+    
+    function setUp() public {
+        setRouterAndFactory();
+        runSetUp();
+    }
+}
 
+contract MainnetForkTest is BaseForkTest {
+    using FixedPointMathLib for uint256;
 
     function test_contract_variables() public view {
         assertEq(curve.admin(), admin);
@@ -519,5 +530,14 @@ contract CurveTest is Test {
         // run fuzzy test to uncover potential overflow or underflow bug
         vm.assume(amountIn >= 10000 ether && amountIn <= 10000000 ether);
         curve.calcAmountOutFromToken(address(testToken), amountIn);
+    }
+}
+
+contract TestnetForkTest is MainnetForkTest {
+    using FixedPointMathLib for uint256;
+
+    function setRouterAndFactory() public override {
+        swapRouter = 0x938d99A81814f66b01010d19DDce92A633441699;
+        uniswapV2Factory = 0xbc679bdd1bA59654bD50DEB03fd80dC97c713fF2; 
     }
 }
