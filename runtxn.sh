@@ -31,10 +31,9 @@ case $NETWORK in
         --etherscan-api-key $FRAXSCAN_API_KEY --broadcast -vvvv
         ;;
     mainnet)
-        echo "Running contract deployment to $1..."
-        # forge script script/Curve.s.sol:MainnetDeploymentScript --chain-id 252 --rpc-url $FRAX_MAINNET_RPC_URL \
-        # --etherscan-api-key $FRAXSCAN_API_KEY --verifier-url https://api.fraxscan.com/api \
-        # --broadcast --verify -vvvv
+        echo "Running test transactions for $1..."
+        forge script script/Curve.s.sol:MainnetTransactionScript --chain-id 252 --rpc-url $FRAX_MAINNET_RPC_URL \
+        --etherscan-api-key $FRAXSCAN_API_KEY --broadcast -vvvv
         ;;
     *)
         echo "Unsupported network argument provided..."

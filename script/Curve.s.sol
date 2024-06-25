@@ -12,7 +12,7 @@ contract TestnetDeploymentScript is Script {
     uint256 tradingFeeRate = 100; // 1%
     uint256 migrationFeeRate = 500; // 5%
     uint256 creationFee = 10**15; // 0.001 ether
-    uint256 initVirtualEthReserve = 0.03 ether;
+    uint256 initVirtualEthReserve = 0.0001 ether;
 
     function setRouterAndFactory() public virtual {
         swapRouter = 0x938d99A81814f66b01010d19DDce92A633441699;
@@ -43,10 +43,15 @@ contract MainnetDeploymentScript is TestnetDeploymentScript {
 
 contract TestnetTransactionScript is Script {
     RampBondingCurveAMM curve;
+    uint256 threshold;
     uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
 
     function setCurve() public virtual {
         curve = RampBondingCurveAMM(payable(0xD62BfbF2050e8fEAD90e32558329D43A6efce4C8));
+    }
+
+    function setThreshold() public virtual {
+        threshold = 0.0003 ether;
     }
 
     function runTokenLaunch() public returns (RampToken) {
@@ -57,7 +62,7 @@ contract TestnetTransactionScript is Script {
             image: "ramp.jpg",
             twitterLink: "x.com/ramp.fun",
             telegramLink: "t.me/ramp.fun",
-            website: "test2.com"
+            website: "https://ramp-fun.vercel.app"
         });
         address token = curve.launchToken(param);
         return RampToken(token);
@@ -74,19 +79,29 @@ contract TestnetTransactionScript is Script {
         amountOut = curve.swapTokensForEth(address(token), amountIn, amountOutMin, block.timestamp + 2 minutes);
     }
 
-    function runMigrateLiquidity(RampToken token, uint256 threshold) public {
+    function runMigrateLiquidity(RampToken token) public {
         uint256 amountOutMin = curve.calcAmountOutFromEth(address(token), threshold);
         curve.swapEthForTokens{ value: threshold }(address(token), threshold, amountOutMin, block.timestamp + 2 minutes);
     }
 
     function run() public {
         setCurve();
+        setThreshold();
         vm.startBroadcast(deployerPrivateKey);
         curve.setCreationFee(0);
         RampToken token = runTokenLaunch();
-        uint256 tokenAmountOut = runSwapEthForTokens(token, 0.001 ether);
+        uint256 tokenAmountOut = runSwapEthForTokens(token, 0.0001 ether);
         runSwapTokensForEth(token, tokenAmountOut/2);
-        // runMigrateLiquidity(token, 0.1 ether);
+        runMigrateLiquidity(token);
         vm.stopBroadcast();
+    }
+}
+
+contract MainnetTransactionScript is TestnetTransactionScript {
+    function setCurve() public override {
+        curve = RampBondingCurveAMM(payable(0xD62BfbF2050e8fEAD90e32558329D43A6efce4C8));
+    }
+    function setThreshold() public override {
+        threshold = 0.0003 ether;
     }
 }
