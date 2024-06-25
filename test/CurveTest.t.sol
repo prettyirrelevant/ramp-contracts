@@ -208,6 +208,13 @@ contract CurveTest is Test {
 
         // --- PRICE UPDATE EVENT ---
         Vm.Log memory priceUpdateLog = logs[1];
+        ( uint256 price, uint256 mcapEth, ) = abi.decode(priceUpdateLog.data, (uint256, uint256, uint256));
+        assertEq(priceUpdateLog.topics.length, 3);
+        assertEq(priceUpdateLog.topics[0], keccak256("PriceUpdate(address,address,uint256,uint256,uint256)"));
+        assertEq(abi.decode(abi.encodePacked(transferLog.topics[1]), (address)), address(testToken));
+        assertEq(abi.decode(abi.encodePacked(transferLog.topics[2]), (address)), trader);
+        assertEq(price, lastPrice);
+        assertEq(mcapEth, lastMcapInEth);
 
         // --- TRADE EVENT ---
         Vm.Log memory tradeLog = logs[2];
