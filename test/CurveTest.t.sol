@@ -172,6 +172,8 @@ contract CurveTest is Test {
         uint256 beforeCurveBal = address(curve).balance;
         uint256 amountOut = curve.swapEthForTokens{value: amountIn}(address(testToken), amountIn, amountOutMin, block.timestamp + 1 minutes);
         vm.stopPrank();
+
+        Vm.Log[] memory logs = vm.getRecordedLogs();
         
         // ---- POOL VERIFICATION ----
         (
@@ -196,12 +198,19 @@ contract CurveTest is Test {
         assertEq(afterCurveBal - beforeCurveBal, amountIn - fee);
 
         // --- TRANSFER EVENT ---
-
+        Vm.Log memory transferLog = logs[0];
+        ( uint256 transferAmount ) = abi.decode(transferLog.data, (uint256));
+        assertEq(transferLog.topics.length, 3);
+        assertEq(transferLog.topics[0], keccak256("Transfer(address,address,uint256)"));
+        assertEq(abi.decode(abi.encodePacked(transferLog.topics[1]), (address)), address(curve));
+        assertEq(abi.decode(abi.encodePacked(transferLog.topics[2]), (address)), trader);
+        assertEq(transferAmount, amountOutMin);
 
         // --- PRICE UPDATE EVENT ---
-
+        Vm.Log memory priceUpdateLog = logs[1];
 
         // --- TRADE EVENT ---
+        Vm.Log memory tradeLog = logs[2];
     }
 
     function test_swap_tokens_for_eth() public {
