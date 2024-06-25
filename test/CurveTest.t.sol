@@ -22,7 +22,7 @@ contract CurveTest is Test {
     uint256 tradingFeeRate = 100; // 1%
     uint256 migrationFeeRate = 700; // 1.5%
     uint256 creationFee = 10**15; // 0.001 ether
-    uint256 initVirtualEthReserve = 1.2 ether;
+    uint256 initVirtualEthReserve = 0.03 ether;
     
 
     function setUp() public {
@@ -159,7 +159,7 @@ contract CurveTest is Test {
         vm.deal(trader, 100 ether);
         vm.startPrank(trader);
         vm.recordLogs();
-        uint256 amountIn = 1 ether;
+        uint256 amountIn = 0.001 ether;
         uint256 fee = amountIn * tradingFeeRate / curve.FEE_DENOMINATOR();
         uint256 amountOutMin = curve.calcAmountOutFromEth(address(testToken), amountIn);
         (
@@ -235,7 +235,7 @@ contract CurveTest is Test {
     function test_swap_tokens_for_eth() public {
         vm.deal(trader, 100 ether);
         vm.startPrank(trader);
-        uint256 tokenAmountOut = curve.swapEthForTokens{value: 1 ether}(address(testToken), 1 ether, 0, block.timestamp + 1 minutes);
+        uint256 tokenAmountOut = curve.swapEthForTokens{value: 0.001 ether}(address(testToken), 0.001 ether, 0, block.timestamp + 1 minutes);
         uint256 amountIn = tokenAmountOut / 2;
         uint256 amountOutMin = curve.calcAmountOutFromToken(address(testToken), amountIn);
         uint256 fee = (amountOutMin * curve.FEE_DENOMINATOR() * curve.tradingFeeRate())/((curve.FEE_DENOMINATOR() - curve.tradingFeeRate()) * curve.FEE_DENOMINATOR());
@@ -314,7 +314,7 @@ contract CurveTest is Test {
     function test_migrate_liquidity() public {
         // Buy enough tokens to trigger liquidity migration
         vm.recordLogs();
-        uint256 amountIn = 4 ether;
+        uint256 amountIn = 0.1 ether;
         uint256 fee = amountIn * tradingFeeRate / curve.FEE_DENOMINATOR();
         uint256 beforeFeeCollectorBal = feeCollector.balance;
         // Buy tokens enough to exceed threshold
