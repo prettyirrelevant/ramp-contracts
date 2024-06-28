@@ -1,0 +1,41 @@
+name: Verify Ramp Tokens
+
+on:
+  schedule:
+    - cron: "0 * * * *" # Runs every hour
+
+  workflow_dispatch: # Allows manual triggering of the workflow
+
+jobs:
+  verify-tokens:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Run Forge build
+        run: |
+          forge --version
+          forge build --sizes
+        id: build
+
+      - name: Verify tokens
+        run: node utils/verifyTokens.js
+        env:
+          NODE_ENV: production
+          FRAX_MAINNET_RPC_URL: https://rpc.frax.com
+          FRAXSCAN_API_KEY: ${{secrets.FRAXSCAN_API_KEY}}
+          FRAX_TESTNET_RPC_URL: https://rpc.testnet.frax.com
