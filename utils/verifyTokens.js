@@ -1,11 +1,22 @@
-const { exec } = require("child_process");
+#!/usr/bin/env node
+
+const { promisify } = require("util");
+const { exec: execCallback } = require("child_process");
+const exec = promisify(execCallback);
 
 const RAMP_CURVE_CONTRACT_ADDRESS =
-  "0xf65330dc75e32b20be62f503a337cd1a072f898f";
+  "0xD62BfbF2050e8fEAD90e32558329D43A6efce4C8";
 const RAMP_TOKEN_SUPPLY = 1000000000000000000000000000n;
+const INDEXER_URL = "https://ramp-indexer.onrender.com";
+
+const log = {
+  info: (message) => console.log(`info: ${message.toLowerCase()}`),
+  error: (message) => console.error(`error: ${message.toLowerCase()}`),
+  warn: (message) => console.warn(`warn: ${message.toLowerCase()}`),
+};
 
 /**
- * Fetch tokens' information from the indexer.
+ * Retrieves all tokens launched by the Ramp.fun contract from the indexer.
  * @returns {Promise<{id: string, name: string, symbol: string, address: string, creator: string, chainId: string}[]>} The fetched token information.
  * @throws {Error} If there is a network error or a GraphQL query error.
  */
@@ -24,34 +35,55 @@ const fetchTokens = async () => {
   }
   `;
 
-  const url = "https://ramp-indexer.onrender.com";
-
   try {
-    console.info("Fetching tokens from the GraphQL endpoint...");
-    const response = await fetch(url, {
+    log.info("fetching tokens from the graphql endpoint...");
+    const response = await fetch(INDEXER_URL, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ query }),
     });
 
     if (!response.ok) {
-      throw new Error(`Network response was not ok: ${response.statusText}`);
+      throw new Error(`network response was not ok: ${response.statusText}`);
     }
 
     const json = await response.json();
-
     if (json.errors) {
       throw new Error(
-        `GraphQL query error: ${json.errors.map((error) => error.message).join(", ")}`,
+        `graphql query error: ${json.errors.map((error) => error.message).join(", ")}`,
       );
     }
 
-    console.info("Tokens fetched successfully.");
+    log.info("tokens fetched successfully");
     return json.data.tokens.items;
   } catch (error) {
-    console.error("Error fetching tokens:", error);
+    log.error(`error fetching tokens: ${error.message}`);
+    throw error;
+  }
+};
+
+/**
+ * Verifies a single token.
+ * @param {Object} token - The token to verify.
+ * @returns {Promise<void>} Resolves when the verification is complete.
+ * @throws {Error} If there is an error during verification.
+ */
+const verifyToken = async (token) => {
+  const command = `forge verify-contract ${token.address} RampToken --watch --chain-id ${token.chainId} --constructor-args $(cast abi-encode "constructor(string,string,address,address,uint256)" "${token.name}" "${token.symbol}" "${RAMP_CURVE_CONTRACT_ADDRESS}" "${token.creator}" "${RAMP_TOKEN_SUPPLY}")`;
+
+  log.info(
+    `verifying token: ${token.name} (${token.symbol}) chainId=${token.chainId}`,
+  );
+  log.info(`executing command: ${command}`);
+
+  try {
+    const { stdout, stderr } = await exec(command);
+    log.info(`command output: ${stdout.trim()}`);
+    if (stderr) {
+      log.warn(`command stderr: ${stderr.trim()}`);
+    }
+  } catch (error) {
+    log.error(`error verifying token ${token.name}: ${error.message}`);
     throw error;
   }
 };
@@ -63,28 +95,21 @@ const fetchTokens = async () => {
  */
 const verifyTokens = async () => {
   try {
-    console.info("Starting token verification process...");
+    log.info("starting token verification process...");
     const tokensToVerify = await fetchTokens();
 
     for (const token of tokensToVerify) {
-      const command = `forge verify-contract ${token.address} RampToken --watch --chain-id ${token.chainId} --constructor-args $(cast abi-encode "constructor(string,string,address,address,uint256)" "${token.name}" "${token.symbol}" "${RAMP_CURVE_CONTRACT_ADDRESS}" "${token.creator}" "${RAMP_TOKEN_SUPPLY}")`;
-      exec(command, (error, stdout, stderr) => {
-        if (error) {
-          console.error("error --> ", error);
-          return;
-        }
-        if (stderr) {
-          console.error("error --> ", stderr);
-          return;
-        }
-
-        console.info("info --> ", stdout);
-      });
+      await verifyToken(token);
     }
   } catch (error) {
-    console.error("Error during token verification process:", error);
-    throw error;
+    log.error(`error during token verification process: ${error.message}`);
+    process.exit(1);
   }
 };
 
-verifyTokens().then().catch();
+// Run the script
+if (require.main === module) {
+  verifyTokens();
+}
+
+module.exports = { verifyTokens, fetchTokens, verifyToken };
