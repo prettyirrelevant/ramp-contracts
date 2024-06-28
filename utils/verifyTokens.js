@@ -111,5 +111,3 @@ const verifyTokens = async () => {
 if (require.main === module) {
   verifyTokens();
 }
-
-module.exports = { verifyTokens, fetchTokens, verifyToken };
