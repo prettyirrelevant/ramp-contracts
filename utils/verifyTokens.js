@@ -9,7 +9,7 @@ const RAMP_CURVE_FRAXTAL_CONTRACT_ADDRESS =
 const RAMP_CURVE_BASE_CONTRACT_ADDRESS =
   "0xFA598e9Bd1970E0cB42b1e23549A6d5436680b51";
 const RAMP_TOKEN_SUPPLY = 1000000000000000000000000000n;
-const INDEXER_URL = "https://ramp-indexer.onrender.com";
+const INDEXER_URL = "https://ramp-indexer.up.railway.app";
 
 const log = {
   info: (message) => console.log(`info: ${message.toLowerCase()}`),
