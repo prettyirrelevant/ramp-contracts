@@ -9,15 +9,15 @@ source .env
 case $NETWORK in
     testnet)
         echo "Verifying token $TOKEN_ADDRESS on $NETWORK.."
-        forge verify-contract $TOKEN_ADDRESS src/Token.sol:RampToken --chain-id 2522 --etherscan-api-key $FRAXSCAN_API_KEY \
-        --verifier-url https://api-holesky.fraxscan.com/api \
+        forge verify-contract $TOKEN_ADDRESS src/Token.sol:RampToken --chain-id 84532 --etherscan-api-key $BASESCAN_API_KEY \
+        --verifier-url $BASESCAN_SEPOLIA_API \
         --constructor-args $(cast abi-encode "constructor(string,string,address,address,uint256)" "$TOKEN_NAME" "$TOKEN_SYMBOL" "$CURVE_ADDRESS" "$TOKEN_CREATOR" "1000000000000000000000000000") \
         --watch
         ;;
     mainnet)
         echo "Verifying token $TOKEN_ADDRESS on $NETWORK.."
-        forge verify-contract $TOKEN_ADDRESS src/Token.sol:RampToken --chain-id 252 --etherscan-api-key $FRAXSCAN_API_KEY \
-        --verifier-url https://api.fraxscan.com/api \
+        forge verify-contract $TOKEN_ADDRESS src/Token.sol:RampToken --chain-id 8453 --etherscan-api-key $BASESCAN_API_KEY \
+        --verifier-url $BASESCAN_API \
         --constructor-args $(cast abi-encode "constructor(string,string,address,address,uint256)" "$TOKEN_NAME" "$TOKEN_SYMBOL" "$CURVE_ADDRESS" "$TOKEN_CREATOR" "1000000000000000000000000000") \
         --watch
         ;;
