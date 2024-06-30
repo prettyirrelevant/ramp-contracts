@@ -20,11 +20,11 @@ source .env
 case $NETWORK in
     testnet)
         echo "Running tests on forked $1..."
-        forge test --match-path test/CurveTest.t.sol --match-contract TestnetForkTest --gas-report --fork-url https://rpc.testnet.frax.com -vvv
+        forge test --match-path test/CurveTest.t.sol --match-contract TestnetForkTest --gas-report --fork-url $BASE_SEPOLIA_RPC_URL -vvv
         ;;
     mainnet)
         echo "Running tests on forked $1..."
-        forge test --match-path test/CurveTest.t.sol --match-contract MainnetForkTest --gas-report --fork-url https://rpc.frax.com -vvv
+        forge test --match-path test/CurveTest.t.sol --match-contract MainnetForkTest --gas-report --fork-url $BASE_RPC_URL -vvv
         ;;
     *)
         echo "Unsupported network argument provided..."

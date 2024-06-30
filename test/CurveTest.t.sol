@@ -24,8 +24,8 @@ contract BaseForkTest is Test {
     uint256 initVirtualEthReserve = 0.03 ether;
 
     function setRouterAndFactory() public virtual {
-        swapRouter = 0x39cd4db6460d8B5961F73E997E86DdbB7Ca4D5F6;
-        uniswapV2Factory = 0xE30521fe7f3bEB6Ad556887b50739d6C7CA667E6;
+        swapRouter = 0x4752ba5DBc23f44D87826276BF6Fd6b1C372aD24;
+        uniswapV2Factory = 0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6;
     }
 
     function runSetUp() internal {
@@ -340,7 +340,7 @@ contract MainnetForkTest is BaseForkTest {
         IUniswapV2Factory uniswapFactory = IUniswapV2Factory(uniswapV2Factory);
         address pairAddr = uniswapFactory.getPair(address(testToken), router.WETH());
         IUniswapV2Pair pair = IUniswapV2Pair(pairAddr);
-        ( uint112 tokenReservePool, uint112 ethReservePool, ) = pair.getReserves();
+        ( uint112 ethReservePool, uint112 tokenReservePool, ) = pair.getReserves();
         uint256 expectedMigrationFee = (amountIn - fee) * migrationFeeRate / curve.FEE_DENOMINATOR();
         
         // Assertions
@@ -393,11 +393,11 @@ contract MainnetForkTest is BaseForkTest {
         address pairAddr = uniswapFactory.getPair(address(testToken), router.WETH());
         IUniswapV2Pair pair = IUniswapV2Pair(pairAddr);
         uint256 beforeTokenBal = testToken.balanceOf(trader);
-        ( uint112 beforeTokenReserve, uint112 beforeEthReserve, ) = pair.getReserves();
+        ( uint112 beforeEthReserve, uint112 beforeTokenReserve, ) = pair.getReserves();
         // Buy Tokens on FraxSwap router
         uint256 amountOut = curve.swapEthForTokens{value: 1 ether}(address(testToken), 1 ether, 0, block.timestamp + 1 minutes);
         uint256 afterTokenBal = testToken.balanceOf(trader);
-        ( uint112 afterTokenReserve, uint112 afterEthReserve, ) = pair.getReserves();
+        ( uint112 afterEthReserve, uint112 afterTokenReserve, ) = pair.getReserves();
         vm.stopPrank();
 
         assertEq(beforeTokenReserve - afterTokenReserve, amountOut);
@@ -420,12 +420,12 @@ contract MainnetForkTest is BaseForkTest {
         address pairAddr = uniswapFactory.getPair(address(testToken), router.WETH());
         IUniswapV2Pair pair = IUniswapV2Pair(pairAddr);
         uint256 beforeTokenBal = testToken.balanceOf(trader);
-        ( uint112 beforeTokenReserve, uint112 beforeEthReserve, ) = pair.getReserves();
+        ( uint112 beforeEthReserve, uint112 beforeTokenReserve, ) = pair.getReserves();
         // Sell Tokens on FraxSwap router
         testToken.approve(address(curve), tokenAmount/2);
         curve.swapTokensForEth(address(testToken), tokenAmount/2, 0, block.timestamp + 1 minutes);
         uint256 afterTokenBal = testToken.balanceOf(trader);
-        ( uint112 afterTokenReserve, uint112 afterEthReserve, ) = pair.getReserves();
+        ( uint112 afterEthReserve, uint112 afterTokenReserve, ) = pair.getReserves();
         vm.stopPrank();
 
         assertEq(afterTokenReserve - beforeTokenReserve, tokenAmount/2);
@@ -537,7 +537,7 @@ contract TestnetForkTest is MainnetForkTest {
     using FixedPointMathLib for uint256;
 
     function setRouterAndFactory() public override {
-        swapRouter = 0x938d99A81814f66b01010d19DDce92A633441699;
-        uniswapV2Factory = 0xbc679bdd1bA59654bD50DEB03fd80dC97c713fF2; 
+        swapRouter = 0x1689E7B1F10000AE47eBfE339a4f69dECd19F602;
+        uniswapV2Factory = 0x7Ae58f10f7849cA6F5fB71b7f45CB416c9204b1e; 
     }
 }
