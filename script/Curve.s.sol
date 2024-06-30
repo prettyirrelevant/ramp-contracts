@@ -46,7 +46,7 @@ contract TestnetTransactionScript is Script {
     uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
 
     function setCurve() public virtual {
-        curve = RampBondingCurveAMM(payable(0xD62BfbF2050e8fEAD90e32558329D43A6efce4C8));
+        curve = RampBondingCurveAMM(payable(0xFA598e9Bd1970E0cB42b1e23549A6d5436680b51));
     }
 
     function setThreshold() public virtual {
