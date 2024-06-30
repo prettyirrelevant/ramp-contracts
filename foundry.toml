@@ -6,11 +6,11 @@ libs = ["lib"]
 via_ir = true
 
 [rpc_endpoints]
-frax_testnet = "${FRAX_TESTNET_RPC_URL}"
-frax_mainnet = "${FRAX_MAINNET_RPC_URL}"
+base_sepolia = "${BASE_SEPOLIA_RPC_URL}"
+base = "${BASE_RPC_URL}"
 
 [etherscan]
-frax_testnet = { key = "${FRAXSCAN_API_KEY}", url = "https://api-holesky.fraxscan.com/api", chain = 2522 }
-frax_mainnet = { key = "${FRAXSCAN_API_KEY}", url = "https://api.fraxscan.com/api", chain = 252 }
+base_sepolia = { key = "${BASESCAN_API_KEY}", url = "https://api-sepolia.basescan.org/api", chain = 84532 }
+base = { key = "${BASESCAN_API_KEY}", url = "https://api.basescan.org/api", chain = 8453 }
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
