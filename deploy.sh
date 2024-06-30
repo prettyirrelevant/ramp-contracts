@@ -27,14 +27,14 @@ NETWORK=$1
 case $NETWORK in
     testnet)
         echo "Running contract deployment to $1..."
-        forge script script/Curve.s.sol:TestnetDeploymentScript --chain-id 2522 --rpc-url $FRAX_TESTNET_RPC_URL \
-        --etherscan-api-key $FRAXSCAN_API_KEY --verifier-url https://api-holesky.fraxscan.com/api \
+        forge script script/Curve.s.sol:TestnetDeploymentScript --chain-id 84532 --rpc-url $BASE_SEPOLIA_RPC_URL \
+        --etherscan-api-key $BASESCAN_API_KEY --verifier-url $BASESCAN_SEPOLIA_API \
         --broadcast --verify -vvvv
         ;;
     mainnet)
         echo "Running contract deployment to $1..."
-        forge script script/Curve.s.sol:MainnetDeploymentScript --chain-id 252 --rpc-url $FRAX_MAINNET_RPC_URL \
-        --etherscan-api-key $FRAXSCAN_API_KEY --verifier-url https://api.fraxscan.com/api \
+        forge script script/Curve.s.sol:MainnetDeploymentScript --chain-id 8453 --rpc-url $BASE_RPC_URL \
+        --etherscan-api-key $BASESCAN_API_KEY --verifier-url $BASESCAN_API \
         --broadcast --verify -vvvv
         ;;
     *)

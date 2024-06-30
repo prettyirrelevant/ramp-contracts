@@ -8,16 +8,15 @@ contract TestnetDeploymentScript is Script {
 
     address feeCollector = 0xF65330dC75e32B20Be62f503a337cD1a072f898f;
     address swapRouter;
-    address fraxswapFactory;
+    address swapFactory;
     uint256 tradingFeeRate = 100; // 1%
     uint256 migrationFeeRate = 500; // 5%
     uint256 creationFee = 10**15; // 0.001 ether
     uint256 initVirtualEthReserve = 0.0001 ether;
 
     function setRouterAndFactory() public virtual {
-        swapRouter = 0x938d99A81814f66b01010d19DDce92A633441699;
-        fraxswapFactory = 0xcA35C3FE456a87E6CE7827D1D784741613463204;
-
+        swapRouter = 0x1689E7B1F10000AE47eBfE339a4f69dECd19F602;
+        swapFactory = 0x7Ae58f10f7849cA6F5fB71b7f45CB416c9204b1e;
     }
 
     function run() public {
@@ -27,7 +26,7 @@ contract TestnetDeploymentScript is Script {
         RampBondingCurveAMM curve = new RampBondingCurveAMM(
             tradingFeeRate, migrationFeeRate, 
             creationFee, initVirtualEthReserve, 
-            feeCollector, swapRouter, fraxswapFactory
+            feeCollector, swapRouter, swapFactory
         );
         console.log("Curve Address: ", address(curve));
         vm.stopBroadcast();
@@ -36,8 +35,8 @@ contract TestnetDeploymentScript is Script {
 
 contract MainnetDeploymentScript is TestnetDeploymentScript {
     function setRouterAndFactory() public override {
-        swapRouter = 0x39cd4db6460d8B5961F73E997E86DdbB7Ca4D5F6;
-        fraxswapFactory = 0xE30521fe7f3bEB6Ad556887b50739d6C7CA667E6;
+        swapRouter = 0x4752ba5DBc23f44D87826276BF6Fd6b1C372aD24;
+        swapFactory = 0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6;
     }
 }
 
