@@ -4,8 +4,10 @@ const { promisify } = require("util");
 const { exec: execCallback } = require("child_process");
 const exec = promisify(execCallback);
 
-const RAMP_CURVE_CONTRACT_ADDRESS =
+const RAMP_CURVE_FRAXTAL_CONTRACT_ADDRESS =
   "0xD62BfbF2050e8fEAD90e32558329D43A6efce4C8";
+const RAMP_CURVE_BASE_CONTRACT_ADDRESS =
+  "0xFA598e9Bd1970E0cB42b1e23549A6d5436680b51";
 const RAMP_TOKEN_SUPPLY = 1000000000000000000000000000n;
 const INDEXER_URL = "https://ramp-indexer.onrender.com";
 
@@ -69,7 +71,7 @@ const fetchTokens = async () => {
  * @throws {Error} If there is an error during verification.
  */
 const verifyToken = async (token) => {
-  const command = `forge verify-contract ${token.address} RampToken --watch --chain-id ${token.chainId} --constructor-args $(cast abi-encode "constructor(string,string,address,address,uint256)" "${token.name}" "${token.symbol}" "${RAMP_CURVE_CONTRACT_ADDRESS}" "${token.creator}" "${RAMP_TOKEN_SUPPLY}")`;
+  const command = `forge verify-contract ${token.address} RampToken --watch --chain-id ${token.chainId} --constructor-args $(cast abi-encode "constructor(string,string,address,address,uint256)" "${token.name}" "${token.symbol}" "${token.chainId === 84532 ? RAMP_CURVE_BASE_CONTRACT_ADDRESS : RAMP_CURVE_FRAXTAL_CONTRACT_ADDRESS}" "${token.creator}" "${RAMP_TOKEN_SUPPLY}")`;
 
   log.info(
     `verifying token: ${token.name} (${token.symbol}) chainId=${token.chainId}`,
