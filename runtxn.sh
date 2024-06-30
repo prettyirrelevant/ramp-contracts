@@ -27,13 +27,13 @@ NETWORK=$1
 case $NETWORK in
     testnet)
         echo "Running test transactions for $1..."
-        forge script script/Curve.s.sol:TestnetTransactionScript --chain-id 2522 --rpc-url $FRAX_TESTNET_RPC_URL \
-        --etherscan-api-key $FRAXSCAN_API_KEY --broadcast -vvvv
+        forge script script/Curve.s.sol:TestnetTransactionScript --chain-id 84532 --rpc-url $BASE_SEPOLIA_RPC_URL \
+        --etherscan-api-key $BASESCAN_API_KEY --broadcast -vvvv
         ;;
     mainnet)
         echo "Running test transactions for $1..."
-        forge script script/Curve.s.sol:MainnetTransactionScript --chain-id 252 --rpc-url $FRAX_MAINNET_RPC_URL \
-        --etherscan-api-key $FRAXSCAN_API_KEY --broadcast -vvvv
+        forge script script/Curve.s.sol:MainnetTransactionScript --chain-id 8453 --rpc-url $BASE_RPC_URL \
+        --etherscan-api-key $BASESCAN_API_KEY --broadcast -vvvv
         ;;
     *)
         echo "Unsupported network argument provided..."
