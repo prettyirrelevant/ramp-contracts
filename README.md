@@ -1,66 +1,40 @@
-## Foundry
+# Ramp Contracts
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+This repository contains the core smart contracts for [Ramp.fun](https://ramp-fun.vercel.app/), a decentralized application designed to facilitate fair and transparent token launches on the FraxTal L2 chain.
 
-Foundry consists of:
+## Ramp Bonding Curve
 
-- **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
-- **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
-- **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
-- **Chisel**: Fast, utilitarian, and verbose solidity REPL.
+This is the main [contract](/src/Curve.sol) that powers token launches, trading and liquidity migration.
 
-## Documentation
+### Deployment Addresses
 
-https://book.getfoundry.sh/
+|  Blockchain  |                                                            Address                                                            |
+| :----------: | :---------------------------------------------------------------------------------------------------------------------------: |
+| Fraxtal Mainnet | [0xD62BfbF2050e8fEAD90e32558329D43A6efce4C8](https://fraxscan.com/address/0xd62bfbf2050e8fead90e32558329d43a6efce4c8) |
+| Fraxtal Testnet  | [0xD62BfbF2050e8fEAD90e32558329D43A6efce4C8](https://holesky.fraxscan.com/address/0xd62bfbf2050e8fead90e32558329d43a6efce4c8) |
 
-## Usage
+## Ramp Token
+This is the [token contract](/src/Token.sol) code for all tokens launched on [ramp.fun](https://ramp-fun.vercel.app/).
 
-### Build
+## Development
 
-```shell
-$ forge build
+### Installation
+
+- Clone the repository
+- `cd ramp-contracts`
+- Install foundry: `curl -L https://foundry.paradigm.xyz | bash`
+- Set up .env according to [.env.example](/.env.example)
+
+### Testing
+The smart contract tests can be found in [CurveTest.t.sol](/test/CurveTest.t.sol)
+Run Foundry Tests:
+- Modify test [script](/runtests.sh) permissions
+```bash
+chmod 700 ./runtests.sh
+```
+- Run test on Fraxtal mainnet fork
+```bash
+./runtests.sh mainnet
 ```
 
-### Test
-
-```shell
-$ forge test
-```
-
-### Format
-
-```shell
-$ forge fmt
-```
-
-### Gas Snapshots
-
-```shell
-$ forge snapshot
-```
-
-### Anvil
-
-```shell
-$ anvil
-```
-
-### Deploy
-
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
-```
-
-### Cast
-
-```shell
-$ cast <subcommand>
-```
-
-### Help
-
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
-```
+Built with love ❤️ from 🇳🇬🚀.
