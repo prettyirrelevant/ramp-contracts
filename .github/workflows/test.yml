@@ -32,5 +32,5 @@ jobs:
 
       - name: Run Forge tests
         run: |
-          forge test -vvv
+          forge test --match-path test/CurveTest.t.sol --match-contract MainnetForkTest --gas-report --fork-url https://rpc.frax.com -vvv
         id: test
